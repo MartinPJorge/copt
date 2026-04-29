@@ -127,6 +127,7 @@ def minimize_frank_wolfe(
         callback=None,
         verbose=0,
         eps=1e-8,
+        use_cupy=False
 ):
     r"""Frank-Wolfe algorithm.
 
@@ -200,6 +201,9 @@ def minimize_frank_wolfe(
     verbose: int, optional
       Verbosity level.
 
+    use_cupy: bool, optional
+      To use CuPy for vector manipulation
+
 
   Returns:
     scipy.optimize.OptimizeResult
@@ -224,6 +228,10 @@ def minimize_frank_wolfe(
     * :ref:`sphx_glr_auto_examples_frank_wolfe_plot_sparse_benchmark.py`
     * :ref:`sphx_glr_auto_examples_frank_wolfe_plot_vertex_overlap.py`
   """
+    if use_cupy:
+        import cupy as np
+        from cupyx.scipy import linalg
+
     x0 = np.asanyarray(x0, dtype=float)
     if tol < 0:
         raise ValueError("Tol must be non-negative")
@@ -250,7 +258,10 @@ def minimize_frank_wolfe(
 
     for it in range(max_iter):
         update_direction, fw_vertex_rep, away_vertex_rep, max_step_size = lmo(-grad, x, active_set)
-        norm_update_direction = linalg.norm(update_direction) ** 2
+        if use_cupy:
+            norm_update_direction = np.linalg.norm(update_direction) ** 2
+        else:
+            norm_update_direction = linalg.norm(update_direction) ** 2
         certificate = np.dot(update_direction, -grad)
 
         # .. compute an initial estimate for the ..
@@ -258,9 +269,14 @@ def minimize_frank_wolfe(
         if lipschitz_t is None:
             eps = 1e-3
             grad_eps = func_and_grad(x + eps * update_direction)[1]
-            lipschitz_t = linalg.norm(grad - grad_eps) / (
-                eps * np.sqrt(norm_update_direction)
-            )
+            if use_cupy:
+                lipschitz_t = np.linalg.norm(grad - grad_eps) / (
+                    eps * np.sqrt(norm_update_direction)
+                )
+            else:
+                lipschitz_t = linalg.norm(grad - grad_eps) / (
+                    eps * np.sqrt(norm_update_direction)
+                )
             print("Estimated L_t = %s" % lipschitz_t)
 
         if certificate <= tol:
