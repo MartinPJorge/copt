@@ -231,6 +231,9 @@ def minimize_frank_wolfe(
     if use_cupy:
         import cupy as np
         from cupyx.scipy import linalg
+    else use_cupy:
+        import numpy as np
+        from scipy import linalg
 
     x0 = np.asanyarray(x0, dtype=float)
     if tol < 0:
